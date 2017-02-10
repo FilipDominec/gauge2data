@@ -17,7 +17,7 @@ from skimage import data
 import argparse
 parser = argparse.ArgumentParser(description='Convert a (timelapse) video of an analog gauge to a data series', allow_abbrev=True)
 parser.add_argument('-input',         type=str,  help='input file name (may be any format accepted by ffmpeg)')
-parser.add_argument('-output',         type=str,  help='output file name (stdout if left empty)')
+parser.add_argument('-output',         type=str, default='', help='output file name (stdout if left empty)')
 parser.add_argument('-topcrop',     type=float, default=0.0, help='crop from top (from 0 to 1)')
 parser.add_argument('-bottomcrop',  type=float, default=1.0, help='crop from bottom (from 0 to 1)')
 parser.add_argument('-leftcrop',    type=float, default=0.0, help='crop from left (from 0 to 1)')
@@ -44,13 +44,13 @@ ffoutput = sp.check_output(['ffprobe', '-v', 'error', '-show_entries', 'stream=w
 xres, yres = [int(s) for s in ffoutput.split()]
 
 # You can get informations on a file (frames size, number of frames per second, etc.) by calling
-command = ['ffmpeg'+os_ext, '-ss', '00:00:00', '-i', input_file_name, '-f', 'image2pipe', '-pix_fmt', 'rgb24',
+command = ['ffmpeg'+os_ext, '-ss', '00:00:00', '-i', input_file_name, '-f', 'image2pipe', '-pix_fmt', 'rgb24', '-filter:v', 'fps=24/%d' % args.skipframes,
            '-vcodec','rawvideo', '-loglevel', 'error', '-']
 ffoutput = sp.check_output(command)
 raw_stream =  np.fromstring(ffoutput, dtype='uint8') # transform the byte read into a numpy array
 framesize = xres*yres*bpp
 framenumber = (len(raw_stream) / framesize)
-#print("Data input contains %f frames" % framenumber )
+print("Data input contains %f frames" % framenumber )
 
 def raw_frame_to_image(nframe, preprocess=True):
     ## process three-byte array to a monochrome image
@@ -64,9 +64,9 @@ def raw_frame_to_image(nframe, preprocess=True):
         if args.hardthreshold < 0:
             from skimage import filters                 ## automatic background removal using the Otsu thresholding
             val = filters.threshold_otsu(image)
-            mask = image < (val*args.adjustthreshold)
-            image = image*0
-            image[mask] = 255
+            mask = image > (val*args.adjustthreshold)
+            image[mask] = 0
+            #image = image*0
         else:
             image = 256-image                               ## take a negative
             image[image<((1-args.hardthreshold)*256)] = 0    ## optional thresholding with a set value 
@@ -74,7 +74,7 @@ def raw_frame_to_image(nframe, preprocess=True):
 
 times, angles = [], []
 print("#time(s)\tangle")
-for nframe in range(0, int(framenumber), int(args.skipframes)):
+for nframe in range(0, int(framenumber), 1):
 
     # Find the longest line in probabilistic Hough - this is the gauge pointer!
     image = raw_frame_to_image(nframe)
@@ -99,8 +99,9 @@ for nframe in range(0, int(framenumber), int(args.skipframes)):
     if args.visual:
         ax1.plot((p0[0], p1[0]), (p0[1], p1[1]), c='r')
         plt.show()
-    times.append(nframe/args.fps)
+    times.append(nframe/args.fps*args.skipframes)
     angles.append(angle/np.pi*180)
+    print(angle/np.pi*180)
 
 ## Calibration routine
 def closest_index(keyval, arr):
@@ -112,7 +113,7 @@ if args.calibrate:
         print('(Calibration step %d of %d: frame %d with angle %f) Hit alt-F4 to close the plot window and remember the value on the gauge' % (nstep, args.calibrate, nframe, keyangle),)
 
         ## Visualise the image
-        image = raw_frame_to_image(nframe*args.skipframes, preprocess=False)
+        image = raw_frame_to_image(nframe, preprocess=False)
         fig, ax1 = plt.subplots(1, 1, figsize=(6,4))
         ax1.imshow(image, cmap=plt.cm.gray)
         plt.show()
@@ -121,21 +122,22 @@ if args.calibrate:
             calibangles.append(keyangle)
         except ValueError:
             print("None or invalid value entered; calibration point not used")
-
-print("Calibration table of angles to values:")
-for ca, cv in zip(calibangles, calibvalues): print("\t%.06g\t%g\r" % (ca, cv))
+print(angles)
 outstr = ''
 if len(calibangles) == 0:
-    outstr += '#time(s)\tvalue\r'
+    outstr += '#time(s) \tvalue\n'
     for time, angle in zip(times, angles):
-        outstr += '%.06g\t%f\r' % (time, angle)
+        outstr += ('%.06g \t%f\n' % (time, angle))
 else:
-    outstr += '#time(s)\tangle(deg)\r'
+    print("Calibration table of angles to values:")
+    for ca, cv in zip(calibangles, calibvalues): print("\t%.06g\t%g" % (ca, cv))
+    outstr += '#time(s) \tangle(deg)\n'
     interp_values = np.interp(angles, calibangles, calibvalues)
     for time, value in zip(times, interp_values):
-        outstr += '%.06g\t%g\r' % (time, value)
+        outstr += ('%.06g \t%g\n' % (time, value))
 
 if args.output:
+    print('Writing to file: %s' % outstr)
     with open(args.output, 'w') as outfile:
         outfile.write(outstr)
 else:
