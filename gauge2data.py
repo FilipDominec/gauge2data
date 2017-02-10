@@ -23,8 +23,10 @@ parser.add_argument('-bottomcrop',  type=float, default=1.0, help='crop from bot
 parser.add_argument('-leftcrop',    type=float, default=0.0, help='crop from left (from 0 to 1)')
 parser.add_argument('-rightcrop',   type=float, default=1.0, help='crop from right (from 0 to 1)')
 parser.add_argument('-fps',         type=float, default=24, help='frames per second; use 24 for real-time video, and e.g. 0.1 for timelapse with 10 second period')
-parser.add_argument('-decim',       type=int, default=2, help='decimate images for faster processing, set to 0 ')
+parser.add_argument('-decim',       type=int, default=2, help='decimate images for faster processing')
+parser.add_argument('-resize',       type=int, default=240, help='the size of the video for internal processing (high values might improve accuracy, but can fill memory!)')
 parser.add_argument('-skipframes',     type=float, default=1, help='process every n-th frame only')
+
 parser.add_argument('-BPP',        type=int, default=3, help='bytes per pixel')
 parser.add_argument('-adjustthreshold',  type=float, default=1.2, help='adjusting the Otsu threshold of white background (Hough transform works the best with flat background)')
 parser.add_argument('-hardthreshold',  type=float, default=-1, help='if set positive, defines a hard brightness value of  thresholding')
@@ -40,14 +42,21 @@ bpp = 3   ## still, only the first (red?) channel will be used here
 #visual = True
 
 # You can get informations on a file (frames size, number of frames per second, etc.) by calling
-ffoutput = sp.check_output(['ffprobe', '-v', 'error', '-show_entries', 'stream=width,height', '-of', 'default=noprint_wrappers=1:nokey=1', 'test.3gp'])
+ffoutput = sp.check_output(['ffprobe', '-v', 'error', '-show_entries', 'stream=width,height', '-of', 'default=noprint_wrappers=1:nokey=1', args.input])
 xres, yres = [int(s) for s in ffoutput.split()]
+aspect = xres/yres
+print('Original video resolution %d x %d' % (xres,yres))
 
-# You can get informations on a file (frames size, number of frames per second, etc.) by calling
-command = ['ffmpeg'+os_ext, '-ss', '00:00:00', '-i', input_file_name, '-f', 'image2pipe', '-pix_fmt', 'rgb24', '-filter:v', 'fps=24/%d' % args.skipframes,
-           '-vcodec','rawvideo', '-loglevel', 'error', '-']
+# You can load any supported video file by calling
+command = ['ffmpeg'+os_ext, '-ss', '00:00:00', '-i', input_file_name, '-f', 'image2pipe', '-pix_fmt', 'rgb24', '-filter:v', 
+        'scale=%d:%d,fps=24/%d' % (args.resize, int(args.resize/xres*yres),args.skipframes),
+        '-vcodec','rawvideo', '-loglevel', 'error', '-']
+xres, yres = args.resize, int(args.resize/xres*yres)
+print('Loaded video resolution %d x %d' % (xres,yres))
+print('The file-loading command will be:', ' '.join(command))
 ffoutput = sp.check_output(command)
 raw_stream =  np.fromstring(ffoutput, dtype='uint8') # transform the byte read into a numpy array
+print('ffmpeg returned %d bytes' % len(raw_stream))
 framesize = xres*yres*bpp
 framenumber = (len(raw_stream) / framesize)
 print("Data input contains %f frames" % framenumber )
@@ -78,6 +87,7 @@ for nframe in range(0, int(framenumber), 1):
 
     # Find the longest line in probabilistic Hough - this is the gauge pointer!
     image = raw_frame_to_image(nframe)
+    print("Processing frame %d, taking %d bytes" % (nframe, len(image)))
     lines = probabilistic_hough_line(image, threshold=10, line_length=5, line_gap=3)
     maxlength=-1
     if args.visual:
@@ -113,7 +123,7 @@ if args.calibrate:
         print('(Calibration step %d of %d: frame %d with angle %f) Hit alt-F4 to close the plot window and remember the value on the gauge' % (nstep, args.calibrate, nframe, keyangle),)
 
         ## Visualise the image
-        image = raw_frame_to_image(nframe, preprocess=False)
+        image = raw_frame_to_image(nframe, preprocess=True)
         fig, ax1 = plt.subplots(1, 1, figsize=(6,4))
         ax1.imshow(image, cmap=plt.cm.gray)
         plt.show()
