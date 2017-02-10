@@ -27,11 +27,11 @@ Often it takes few seconds to load the video and few tens of seconds to compute 
 
 #### Optional visual debug
 
-If the computation does not work as expected, enable the option `-visual 1`  for visual inspection of each pre-processed image that is passed to the Hough transform:
+If the computation does not work as expected, enable the option `-visual 1`  for visual inspection of each pre-processed image that is passed to the Hough transform. The detected line is drawn red. For instance, the following image shows the bottom crop is not sufficient and the gauge rim is erroneously detected as the longest line:
 
+![gauge2data debug](gauge2data_debug.png)
 
-Note that the images also need to be inverted to have white lines on a black background.
-
+Note that the images are also internally inverted to have white lines on a black background.
 
 #### Data calibration
 Finally, you will want to calibrate the gauge, i.e. to assign the resolved angles to actual values. By default, _gauge2data_ picks five equidistant angles, shows the corresponding images and asks you for the actual value readout. You can change the number of the calibration points by the option `-calibrate`; set it to zero to output plain, non-calibrated, angles.
