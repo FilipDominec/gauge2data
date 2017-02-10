@@ -3,31 +3,42 @@
 This script can be useful for everybody who uses or repairs old analog instruments of any kind. By means of the [Hough transform](https://en.wikipedia.org/wiki/Hough_transform), it find the angle of the longest line in each video frame. Therefore, if you place a camera or a mobile phone in front of an old instrument and record a video, you can later get the temporal evolution of any quantity displayed by an analog gauge, without tapping any wire in the instrument and without exporting data from a digital oscilloscope. It may be useful to switch to the timelapse function of the camera/phone, but in this case you want to remember what is its frames-per-second rate for later scaling of the x-axis.
 
 #### Input
-An example: Assume you have recorded the 720x480 video that follows, with 0.1 FPS. (For this README, a thumbnail was created with smaller size and converted to gif.)
+An example: Assume you have recorded the 1280x720 video that follows, with timelapse setting of 0.1 FPS. (For this README, a thumbnail was created with smaller size and converted to gif.)
 <!---  commands to generate it: 
 ffmpeg -i test.3gp -filter:v scale=240:-1 -vf "fps=15,scale=320:-1:flags=lanczos,palettegen" -y  palette.png
 ffmpeg -v warning -i test.3gp -i palette.png -lavfi "fps=15,scale=320:-1:flags=lanczos [x]; [x][1:v] paletteuse" -y out.gif
  -->
 ![Resized input](input_resized.gif)
 
-Technical limitations: whole raw video stream, frame by frame, are loaded into the memory, no matter what decimation or frameskipping is selected. This takes a long time and limits the size of videos in the lower 10s MB range. More efficient file input (e.g. by some options to the ffmpeg filters) should be used in the future.
+When loaded, the frames are downsized due to the memory imprint and also the computation time of the Hough transform. Usually the default horizontal resolution  `-resize 320` is fine. (This is a technical limitation: Whole raw video stream, after resizing, is loaded into the memory uncompressed.)
 
-#### Conversion
-To get reasonable results, all unwanted long straight lines should be cropped, including the gauge boundaries. To this end, specify the `-topcrop`, `-bottomcrop`, `-leftcrop`, `-rightcrop` parameters as numbers from 0 (no crop) up to 1 (would crop the whole image).
+#### Image preprocessing
+To get reasonable results, all unwanted long straight lines should be cropped, including the gauge boundaries. To this end, specify the `-topcrop`, `-bottomcrop`, `-leftcrop`, `-rightcrop` parameters as numbers from 0 (no crop) up to 1 (would crop the whole image to the opposite side).
 
-By default, the internal "Otsu" black/white thresholding algorithm should work well, but if needed, you can tune the `adjustthreshold` parameter, or in special cases you can also try to use simple thresholding by a given value (the `-hardthreshold` option).
+By default, the internal ["Otsu" black/white thresholding algorithm](http://scikit-image.org/docs/dev/auto_examples/plot_otsu.html) should work well, but if needed, you can change the `-adjustthreshold 1.2` parameter, or in special cases you can also try to use simple thresholding by a given value (the `-hardthreshold` option). 
 
 The correct command used here is:
-```
 
 ```
-It takes few tens of seconds to 
+./gauge2data.py -input penning_DP_cooled_1s.3gp   -bottom .15 -left .25 -right .25 -top .4
+```
 
-For visual debugging, enable the option `-visual 1` to see  the pre-processed images that are passed to the Hough transform.
+Often it takes few seconds to load the video and few tens of seconds to compute all Hough transforms.
+
+#### Optional visual debug
+
+If the computation does not work as expected, enable the option `-visual 1`  for visual inspection of each pre-processed image that is passed to the Hough transform:
+
+
+Note that the images also need to be inverted to have white lines on a black background.
+
 
 #### Data calibration
 Finally, you will want to calibrate the gauge, i.e. to assign the resolved angles to actual values. By default, _gauge2data_ picks five equidistant angles, shows the corresponding images and asks you for the actual value readout. You can change the number of the calibration points by the option `-calibrate`; set it to zero to output plain, non-calibrated, angles.
 
+If empty or invalid value is entered, the calibration point will not be used.
+
+Note that if you often get angles close to -90, 0 or +90 degrees, the Hough transform detects some linear artifact on the image; you should use the `-visual 1` option and check the cropping region.
 #### Result
 ![The results](penning_example.png)
 

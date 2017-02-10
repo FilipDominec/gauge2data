@@ -23,8 +23,7 @@ parser.add_argument('-bottomcrop',  type=float, default=1.0, help='crop from bot
 parser.add_argument('-leftcrop',    type=float, default=0.0, help='crop from left (from 0 to 1)')
 parser.add_argument('-rightcrop',   type=float, default=1.0, help='crop from right (from 0 to 1)')
 parser.add_argument('-fps',         type=float, default=24, help='frames per second; use 24 for real-time video, and e.g. 0.1 for timelapse with 10 second period')
-parser.add_argument('-decim',       type=int, default=2, help='decimate images for faster processing')
-parser.add_argument('-resize',       type=int, default=240, help='the size of the video for internal processing (high values might improve accuracy, but can fill memory!)')
+parser.add_argument('-resize',       type=int, default=320, help='the size of the video for internal processing (high values might improve accuracy, but can fill memory!)')
 parser.add_argument('-skipframes',     type=float, default=1, help='process every n-th frame only')
 
 parser.add_argument('-BPP',        type=int, default=3, help='bytes per pixel')
@@ -66,8 +65,9 @@ def raw_frame_to_image(nframe, preprocess=True):
     image = raw_stream[framesize*nframe:framesize*(nframe+1)].reshape(yres,xres,bpp)[:,:,1]   
 
     if preprocess:
-        ## crop and decimate
-        image = image[int(yres*args.topcrop):int(yres*args.bottomcrop):args.decim, int(xres*args.leftcrop):int(xres*args.rightcrop):args.decim] 
+        ## select and crop the image
+        image = image[int(yres*args.topcrop):int(yres*(1-args.bottomcrop)), int(xres*args.leftcrop):int(xres*(1-args.rightcrop))] 
+        #print ("Image cropped to %d, %d" % image.shape)
 
         ## thresholding is necessary for Hough to work
         if args.hardthreshold < 0:
@@ -87,7 +87,6 @@ for nframe in range(0, int(framenumber), 1):
 
     # Find the longest line in probabilistic Hough - this is the gauge pointer!
     image = raw_frame_to_image(nframe)
-    print("Processing frame %d, taking %d bytes" % (nframe, len(image)))
     if args.visual:
         fig, ax1 = plt.subplots(1, 1, figsize=(6,4))
         ax1.imshow(image, cmap=plt.cm.gray)
@@ -114,7 +113,7 @@ for nframe in range(0, int(framenumber), 1):
         plt.show()
     times.append(nframe/args.fps*args.skipframes)
     angles.append(angle/np.pi*180)
-    print(angle/np.pi*180)
+    #print(angle/np.pi*180)
 
 ## Calibration routine
 def closest_index(keyval, arr):
@@ -123,10 +122,10 @@ calibangles, calibvalues = [], []
 if args.calibrate:
     for nstep, keyangle in enumerate(np.linspace(min(angles), max(angles), int(args.calibrate))):
         nframe = closest_index(keyangle, angles)
-        print('(Calibration step %d of %d: frame %d with angle %f) Hit alt-F4 to close the plot window and remember the value on the gauge' % (nstep, args.calibrate, nframe, keyangle),)
+        print('(Interactive calibration step %d of %d: frame %d with angle %f) Hit alt-F4 to close the plot window and remember the value on the gauge' % (nstep, args.calibrate, nframe, keyangle),)
 
         ## Visualise the image
-        image = raw_frame_to_image(nframe, preprocess=True)
+        image = raw_frame_to_image(nframe, preprocess=False)
         fig, ax1 = plt.subplots(1, 1, figsize=(6,4))
         ax1.imshow(image, cmap=plt.cm.gray)
         plt.show()
@@ -149,13 +148,7 @@ else:
     for time, value in zip(times, interp_values):
         outstr += ('%.06g \t%g\n' % (time, value))
 
-if args.output:
-    print('Writing to file: %s' % outstr)
-    with open(args.output, 'w') as outfile:
-        outfile.write(outstr)
-else:
-    print(outstr)
-
-
+with open(args.output if args.output else args.input+'.dat', 'w') as outfile:
+    outfile.write(outstr)
 
 
