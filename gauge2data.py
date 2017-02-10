@@ -88,6 +88,9 @@ for nframe in range(0, int(framenumber), 1):
     # Find the longest line in probabilistic Hough - this is the gauge pointer!
     image = raw_frame_to_image(nframe)
     print("Processing frame %d, taking %d bytes" % (nframe, len(image)))
+    if args.visual:
+        fig, ax1 = plt.subplots(1, 1, figsize=(6,4))
+        ax1.imshow(image, cmap=plt.cm.gray)
     lines = probabilistic_hough_line(image, threshold=10, line_length=5, line_gap=3)
     maxlength=-1
     if args.visual:
