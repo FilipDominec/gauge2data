@@ -17,7 +17,7 @@ from skimage import data
 import argparse
 parser = argparse.ArgumentParser(description='Convert a (timelapse) video of an analog gauge to a data series', allow_abbrev=True)
 parser.add_argument('-input',         type=str,  help='input file name (may be any format accepted by ffmpeg)')
-parser.add_argument('-output',         type=str, default='', help='output file name (stdout if left empty)')
+parser.add_argument('-output',         type=str, default='', help='output file name (<input>.dat if left empty)')
 parser.add_argument('-topcrop',     type=float, default=0.0, help='crop from top (from 0 to 1)')
 parser.add_argument('-bottomcrop',  type=float, default=1.0, help='crop from bottom (from 0 to 1)')
 parser.add_argument('-leftcrop',    type=float, default=0.0, help='crop from left (from 0 to 1)')
@@ -30,7 +30,7 @@ parser.add_argument('-BPP',        type=int, default=3, help='bytes per pixel')
 parser.add_argument('-adjustthreshold',  type=float, default=1.2, help='adjusting the Otsu threshold of white background (Hough transform works the best with flat background)')
 parser.add_argument('-hardthreshold',  type=float, default=-1, help='if set positive, defines a hard brightness value of  thresholding')
 parser.add_argument('-visual',     type=float, default=0, help='shows the line-detection results on each processed frame')
-parser.add_argument('-calibrate',     type=float, default=5, help='if nonzero, enables interactive calibration on the selected values; otherwise angles are output')
+parser.add_argument('-calibrate',     type=int, default=5, help='if 2 or more, enables interactive calibration on the selected values; if 0, angles are output')
 
 args = parser.parse_args()
 

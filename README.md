@@ -31,6 +31,8 @@ If the computation does not work as expected, enable the option `-visual 1`  for
 
 ![gauge2data debug](gauge2data_debug.png)
 
+In general, if you often get angles close to -90, 0 or +90 degrees, the Hough transform just detects some linear artifact on the image; you should use the `-visual 1` option and check the cropping region.
+
 Note that the images are also internally inverted to have white lines on a black background.
 
 #### Data calibration
@@ -38,7 +40,6 @@ Finally, you will want to calibrate the gauge, i.e. to assign the resolved angle
 
 If empty or invalid value is entered, the calibration point will not be used.
 
-Note that if you often get angles close to -90, 0 or +90 degrees, the Hough transform detects some linear artifact on the image; you should use the `-visual 1` option and check the cropping region.
 #### Result
 ![The results](penning_example.png)
 
@@ -58,7 +59,7 @@ If you can not run it, and need to convert just few files, feel free to contact 
 ```
 usage: gauge2data.py [-h] [-input INPUT] [-output OUTPUT] [-topcrop TOPCROP]
                      [-bottomcrop BOTTOMCROP] [-leftcrop LEFTCROP]
-                     [-rightcrop RIGHTCROP] [-fps FPS] [-decim DECIM]
+                     [-rightcrop RIGHTCROP] [-fps FPS] [-resize RESIZE]
                      [-skipframes SKIPFRAMES] [-BPP BPP]
                      [-adjustthreshold ADJUSTTHRESHOLD]
                      [-hardthreshold HARDTHRESHOLD] [-visual VISUAL]
@@ -77,7 +78,8 @@ optional arguments:
   -rightcrop RIGHTCROP  crop from right (from 0 to 1)
   -fps FPS              frames per second; use 24 for real-time video, and
                         e.g. 0.1 for timelapse with 10 second period
-  -decim DECIM          decimate images for faster processing, set to 0
+  -resize RESIZE        the size of the video for internal processing (high
+                        values might improve accuracy, but can fill memory!)
   -skipframes SKIPFRAMES
                         process every n-th frame only
   -BPP BPP              bytes per pixel
@@ -91,6 +93,7 @@ optional arguments:
                         frame
   -calibrate CALIBRATE  if nonzero, enables interactive calibration on the
                         selected values; otherwise angles are output
+
 ```
 
 
